@@ -10,6 +10,7 @@ wand = "*"
 pypdf = "*"
 pdf2image = "*"
 img2pdf = "*"
+gunicorn = "*"
 
 [dev-packages]
 

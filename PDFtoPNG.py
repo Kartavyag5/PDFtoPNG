@@ -4,17 +4,22 @@ import os
 import urllib.request
 from werkzeug.utils import secure_filename
 import os.path
+import zipfile
 
  
 app = Flask(__name__)
  
 app.secret_key = "caircocoders-ednalan"
  
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
- 
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+PDF_FOLDER = 'uploads/pdf'
+PNG_FOLDER = 'uploads/png'
+app.config['PDF_FOLDER'] = PDF_FOLDER
+
+# this is for find the name of file while download zip
+zipname = 'no file'
+
+# you can only upload files in PDF format
+ALLOWED_EXTENSIONS = set(['pdf'])
  
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -24,7 +29,7 @@ def main():
     return 'Homepage'
  
 @app.route('/upload', methods=['POST'])
-def upload_file():
+def upload_file(): 
     # check if the post request has the file part
     if 'files[]' not in request.files:
         resp = jsonify({'message' : 'No file part in the request'})
@@ -39,20 +44,33 @@ def upload_file():
     for file in files:      
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            #changes the zipname with the uploaded pdf name, global makes change for use it ,out of function
+            global zipname
+            zipname = filename
+            
+            file.save(os.path.join(app.config['PDF_FOLDER'], filename))
             success = True
 
-            pages = convert_from_path(f'uploads/{filename}', 500)
+            pages = convert_from_path(f'uploads/pdf/{filename}', 500)
             count=2
             for page in pages:
-                if os.path.exists(f'uploads/{filename[:-4:]}.png'):
-                    page.save(f'uploads/{filename[:-4:]}_{count}.png', 'PNG')
+                if os.path.exists(f'uploads/png/{filename[:-4:]}.png'):
+                    page.save(f'uploads/png/{filename[:-4:]}-{count}.png', 'PNG')
                     count += 1
                 else:
-                    page.save(f'uploads/{filename[:-4:]}.png', 'PNG')
+                    page.save(f'uploads/png/{filename[:-4:]}.png', 'PNG')
 
         else:
             errors[file.filename] = 'File type is not allowed'
+
+    # this will create zipfile, write the png folder in it.
+    zf = zipfile.ZipFile(f"uploads/zip/{filename[:-4:]}.zip", "w")
+    for dirname, files in os.walk("uploads/png"):
+        zf.write(dirname)
+        for filename in files:
+            zf.write(os.path.join(dirname, filename))
+    zf.close()
  
     if success and errors:
         errors['message'] = 'File(s) successfully uploaded'
@@ -69,23 +87,12 @@ def upload_file():
         return resp
  
 
+# this route for download the file in zip format(with all png files)
 @app.route('/download')
-def downloadFile ():
-    #For windows you need to use drive name [ex: F:/Example.pdf]
-    path = "uploads/"
+def download_zip():
+    path = f'uploads/zip/{zipname[:-4:]}.zip'
     return send_file(path, as_attachment=True)
 
 
-@app.route('/download_all')
-def download_all ():
-    dir = 'uploads'
-    data_files = os.listdir (dir)
-    data_files_fullpath = [os.path.join (dir, d) for d in data_files]
-    for d in data_files_fullpath:
-        print ('Download:' + d)
-        send_file (d, as_attachment = True)
-    return 'all files will be downloaded'
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+#if __name__ == '__main__':
+    #app.run(debug=True)
