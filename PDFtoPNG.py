@@ -27,6 +27,7 @@ def allowed_file(filename):
 @app.route('/')
 def main():
     return 'Homepage'
+    
  
 @app.route('/upload', methods=['POST'])
 def upload_file(): 
@@ -54,22 +55,23 @@ def upload_file():
 
             pages = convert_from_path(f'uploads/pdf/{filename}', 500)
             count=2
+            os.mkdir(f'uploads/png/{filename[:-4:]}')
             for page in pages:
-                if os.path.exists(f'uploads/png/{filename[:-4:]}.png'):
-                    page.save(f'uploads/png/{filename[:-4:]}-{count}.png', 'PNG')
+                if os.path.exists(f'uploads/png/{filename[:-4:]}/{filename[:-4:]}.png'):
+                    page.save(f'uploads/png/{filename[:-4:]}/{filename[:-4:]}-{count}.png', 'PNG')
                     count += 1
                 else:
-                    page.save(f'uploads/png/{filename[:-4:]}.png', 'PNG')
+                    page.save(f'uploads/png/{filename[:-4:]}/{filename[:-4:]}.png', 'PNG')
 
         else:
             errors[file.filename] = 'File type is not allowed'
 
     # this will create zipfile, write the png folder in it.
+    
     zf = zipfile.ZipFile(f"uploads/zip/{filename[:-4:]}.zip", "w")
-    for dirname, files in os.walk("uploads/png"):
-        zf.write(dirname)
+    for root,dirs,files in os.walk(f"uploads/png/{filename[:-4:]}"):
         for filename in files:
-            zf.write(os.path.join(dirname, filename))
+            zf.write(os.path.join(root, filename))
     zf.close()
  
     if success and errors:
